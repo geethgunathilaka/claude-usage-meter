@@ -11,8 +11,9 @@ import (
 // Set UI_PREVIEW_DIR to write preview PNGs for a visual check.
 func TestRender(t *testing.T) {
 	w := RenderWidget(WidgetData{
-		Bars:  []Bar{{"5h", 87, Alert}, {"Week", 74, Warn}, {"Fable", 50, OK}},
-		Right: "resets 13:00",
+		Bars:      []Bar{{"5h", 43, OK}, {"Week", 81, Warn}},
+		ResetTime: "18:00",
+		ResetIn:   "in 4h 52m",
 	}, 1.25)
 	if w.Bounds().Dx() < 300 || w.Bounds().Dy() != 50 {
 		t.Fatalf("widget size %v", w.Bounds())

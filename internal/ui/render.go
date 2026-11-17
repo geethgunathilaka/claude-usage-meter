@@ -210,9 +210,30 @@ type Bar struct {
 
 // WidgetData is what the desktop bar shows.
 type WidgetData struct {
-	Bars    []Bar
-	Right   string // e.g. "resets 13:00"
-	Message string // shown instead of bars when there is no data
+	Bars      []Bar
+	Right     string // plain text on the right (used when ResetTime is empty)
+	ResetTime string // e.g. "18:00" — shown bold with a clock icon
+	ResetIn   string // e.g. "in 4h 52m" — shown small under ResetTime
+	Message   string // shown instead of bars when there is no data
+}
+
+// drawClock draws a small outline clock icon centred at cx,cy.
+func drawClock(img *image.RGBA, cx, cy, r, w float64, c color.RGBA) {
+	for y := int(cy - r - 1); y <= int(cy+r+1); y++ {
+		for x := int(cx - r - 1); x <= int(cx+r+1); x++ {
+			px, py := float64(x)+0.5-cx, float64(y)+0.5-cy
+			d := math.Hypot(px, py)
+			cov := clamp01(r+0.5-d) * clamp01(d-(r-w-0.5)) // outer ring
+			// hands: up (12 o'clock) and right (3 o'clock), from the centre
+			if py <= 0 && py >= -r*0.62 && math.Abs(px) <= w/2 {
+				cov = math.Max(cov, clamp01(w/2+0.5-math.Abs(px)))
+			}
+			if px >= 0 && px <= r*0.5 && math.Abs(py) <= w/2 {
+				cov = math.Max(cov, clamp01(w/2+0.5-math.Abs(py)))
+			}
+			blend(img, x, y, c, cov)
+		}
+	}
 }
 
 func pctLabel(p float64) string {
@@ -250,6 +271,8 @@ func RenderWidget(d WidgetData, s float64) *image.RGBA {
 	fLabel := face(false, 12.5*s)
 	fPct := face(true, 13*s)
 	fRight := face(false, 12*s)
+	fResetT := face(true, 12.5*s)
+	fResetIn := face(false, 9.5*s)
 
 	w := pad + logo*2 + 12*s
 	type grp struct{ lw, pw float64 }
@@ -262,10 +285,16 @@ func RenderWidget(d WidgetData, s float64) *image.RGBA {
 			gs = append(gs, g)
 			w += g.lw + 6*s + barW + 7*s + g.pw + 16*s
 		}
-		if d.Right != "" {
-			w += textWidth(fRight, d.Right) + 2*s
+		switch {
+		case d.ResetTime != "":
+			// divider, clock icon, then "18:00" over "in 4h 52m"
+			tw := math.Max(textWidth(fResetT, d.ResetTime), textWidth(fResetIn, d.ResetIn))
+			w += 2*s + 12*s + 14*s + 7*s + tw + pad - 16*s + 4*s
+		case d.Right != "":
+			w += textWidth(fRight, d.Right) + 2*s + pad - 16*s + 4*s
+		default:
+			w += pad - 16*s + 4*s
 		}
-		w += pad - 16*s + 4*s
 	}
 	W := math.Ceil(w)
 	img := image.NewRGBA(image.Rect(0, 0, int(W), int(math.Ceil(H))))
@@ -289,7 +318,20 @@ func RenderWidget(d WidgetData, s float64) *image.RGBA {
 		drawText(img, fPct, x, cy, pctLabel(b.Percent), Cream)
 		x += g.pw + 16*s
 	}
-	if d.Right != "" {
+	switch {
+	case d.ResetTime != "":
+		x -= 4 * s
+		fillRoundRect(img, x, H*0.24, x+1*s, H*0.76, 0.5*s, color.RGBA{255, 255, 255, 38}) // divider
+		x += 1*s + 12*s
+		drawClock(img, x+7*s, cy, 6.5*s, 1.5*s, Muted)
+		x += 14*s + 7*s
+		if d.ResetIn != "" {
+			drawText(img, fResetT, x, cy-6*s, d.ResetTime, Cream)
+			drawText(img, fResetIn, x, cy+8*s, d.ResetIn, Muted)
+		} else {
+			drawText(img, fResetT, x, cy, d.ResetTime, Cream)
+		}
+	case d.Right != "":
 		drawText(img, fRight, x, cy, d.Right, Muted)
 	}
 	return img

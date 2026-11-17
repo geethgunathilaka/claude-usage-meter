@@ -461,8 +461,9 @@ func (a *app) update() config.Config {
 			src += " · last refresh failed: " + a.lastPlanErr.Error()
 		}
 		m.source.SetTitle(src)
-		if plan.Session != nil {
-			widget.Right = "resets " + shortResets(now, plan.Session.ResetsAt)
+		if plan.Session != nil && !plan.Session.ResetsAt.IsZero() {
+			widget.ResetTime = shortResets(now, plan.Session.ResetsAt)
+			widget.ResetIn = "in " + format.Until(now, plan.Session.ResetsAt)
 		}
 
 		ring := -1.0
@@ -494,7 +495,8 @@ func (a *app) update() config.Config {
 			systray.SetTooltip("Claude (estimate) · 5h window " + format.Percent(local.Percent))
 			widget.Bars = []ui.Bar{{Label: "5h est.", Percent: local.Percent, Level: uiLevel(local.Percent, cfg)}}
 			if local.Active != nil {
-				widget.Right = "resets " + local.Active.End.Local().Format("15:04")
+				widget.ResetTime = local.Active.End.Local().Format("15:04")
+				widget.ResetIn = "in " + format.Until(now, local.Active.End)
 				watched = []alerts.Limit{{Name: "Session (estimate)", Percent: local.Percent, ResetsAt: local.Active.End}}
 			}
 		} else {

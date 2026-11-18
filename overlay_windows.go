@@ -396,7 +396,8 @@ func (o *overlay) ShowWidget(img *image.RGBA, opt WidgetOptions) {
 		case "top-left":
 			o.widgetX, o.widgetY = wa.Left+m, top
 		case "top-center":
-			o.widgetX, o.widgetY = (wa.Left+wa.Right-w)/2, top
+			// window buttons sit in the corners, so the centre can hug the top edge even when on top
+			o.widgetX, o.widgetY = (wa.Left+wa.Right-w)/2, wa.Top+int32(4*o.scale)
 		case "bottom-left":
 			o.widgetX, o.widgetY = wa.Left+m, wa.Bottom-h-m
 		case "bottom-right":
